@@ -1,9 +1,11 @@
 Package: schneiderforecast
 Version: 0.0.0.9000
-Title: What the Package Does (one line, title case)
-Description: What the package does (one paragraph).
-Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
-License: What license is it under?
+Title: DrivenData.org Power Laws: Forecasting Energy Consumption
+Description: Forecast energy consumption using historical building, weather, and calendar data 
+Authors@R: person("Zach", "Sharp", email = "zachmsharp@gmail.com", role = c("aut", "cre"))
+License: None
 Encoding: UTF-8
 LazyData: true
 ByteCompile: true
+URL: https://github.com/zsharpm/schneiderforecast
+BugReports: https://github.com/zsharpm/schneiderforecast/issues
