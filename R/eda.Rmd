@@ -1,0 +1,201 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+forecast periods
+forecastperiodns     n
+             <dbl> <int>
+      900000000000  5444 # 15 minutes
+     3600000000000  1306 # hourly
+    86400000000000   224 # day
+    
+Forecast periods of 15 minutes and hourly: 192 predictions
+Forecast periods of daily: 60 predictions
+
+daily: 1
+hourly: 5
+15 minutes: 42
+
+
+```{r}
+submission_forecast_period %>%
+  count(ForecastPeriodNS)
+```
+
+```{r}
+ggplot(training_data_raw %>% filter(forecastid == 1), aes(timestamp, value)) + geom_line()
+ggplot(training_data_raw %>% filter(forecastid == 1969), aes(timestamp, value)) + geom_line()
+```
+
+```{r}
+sample_site_id <- training_data_raw %>%
+  inner_join(submission_forecast_period, "forecastid") %>%
+  distinct(forecastid, siteid, forecastperiodns) %>%
+  count(siteid, forecastperiodns) %>%
+  arrange(desc(n)) %>%
+  group_by(forecastperiodns) %>%
+  mutate(rn = row_number()) %>%
+  ungroup() %>%
+  filter(rn <= 2) %>%
+  pull(siteid)
+
+sample_site_id
+```
+
+
+
+```{r}
+training_data_raw %>%
+  group_by(forecastid) %>% 
+  summarize(var = var(value, na.rm = T)) %>%
+  arrange(desc(var)) %>%
+  ggplot(aes(x = log(var))) + geom_histogram()
+```
+
+
+```{r}
+training_data %>%
+  count(forecastid, period) %>%
+  ggplot(aes(as.character(n), fill = period)) + geom_bar()
+```
+
+
+```{r}
+ggplot(trn %>% filter(forecastid == 6469), aes(x = timestamp, y = value)) +
+  geom_line() +
+  geom_point(data = submission_format %>% filter(forecastid == 6469), color = "red") +
+  tidyquant::geom_ma(ma_fun = SMA, n = 14, size = 1)
+```
+
+```{r}
+ggplot(training_data, aes(x = as.character(surface), y = value)) + geom_boxplot() + facet_wrap(~ period, scales = "free")
+```
+
+
+```{r}
+ggplot(training_data %>% filter(forecastid %in% c(1, 5, 42)), aes(x = timestamp, y = value)) +
+  geom_line() +
+  geom_point(data = submission_format %>% filter(forecastid %in% c(1, 5, 42)), color = "red") +
+  tidyquant::geom_ma(ma_fun = SMA, n = 14, size = 1) +
+  facet_wrap(~ forecastid, scales = "free", ncol = 1)
+```
+
+
+```{r}
+ggplot(training_data %>% filter(period == "daily", siteid == 1) %>% sample_frac(0.01), aes(x = surface, y = value)) + 
+  geom_point(alpha = .3)
+```
+
+```{r}
+weather %>%
+  filter(siteid == 299) %>%
+  arrange(timestamp) %>%
+  #filter(timestamp < "2010-03-01", timestamp > "2010-02-01") %>%
+  ggplot(aes(timestamp, temperature)) +
+  geom_point() +
+  geom_smooth()
+
+```
+
+
+```{r}
+hourly_weather %>%
+  filter(siteid == 299) %>%
+  #filter(hour < "2010-03-01", hour > "2010-02-01") %>%
+  ggplot(aes(hour, temperature)) +
+  geom_point() +
+  geom_smooth()
+
+```
+
+```{r}
+training_data %>%
+  filter(forecastid == 42) %>%
+  as_tbl_time(index = timestamp) %>%
+  as_period("hourly")
+```
+
+
+```{r}
+training_data %>%
+  filter(forecastid == 42) %>%
+  as_tbl_time(index = timestamp) %>%
+  tk_get_timeseries_summary()
+
+```
+
+```{r}
+training_data %>%
+  filter(site_id %in% 
+           training_data_raw %>%
+           distinct(forecastid, siteid) %>%
+           count(siteid) %>%
+           top_n(10, n) %>% 
+           pull(siteid)
+         ) %>%
+  ggplot(aes(x = siteid, y = log(value))) + geom_boxplot()
+```
+
+
+```{r}
+glimpse(trn)
+```
+
+```{r}
+trn %>%
+  count(period)
+```
+
+```{r}
+ggplot(trn, aes(x = timestamp, y = value, color = period)) + geom_line() + facet_wrap(~period, scales = "free")
+```
+
+```{r}
+plotly::ggplotly(ggplot(trn %>% filter(period == "15 minutes", forecastid == 43), aes(x = timestamp, y = value)) + geom_point())
+```
+
+
+```{r}
+ggplot(weather_raw %>% filter(siteid == 1), aes(x = timestamp, y = temperature, color = as.factor(distance))) + geom_line() + facet_wrap(~ distance)
+
+ggplot(weather_raw %>% filter(siteid == 6), aes(x = timestamp, y = temperature, color = as.factor(distance))) + geom_line() + facet_wrap(~ distance)
+```
+
+
+```{r}
+trn %>%
+  select(timestamp, forecastid, siteid, value) %>%
+  #filter(period == "15 minutes") %>%
+  as_tbl_time(index = timestamp) %>%
+  arrange(timestamp) %>%
+  #group_by(forecastid) %>%
+  collapse_by("daily") %>%
+  ungroup() %>%
+  group_by(siteid, timestamp) %>%
+  summarise_all(mean) %>%
+  ungroup() %>%
+  mutate(
+    timestamp_key = floor_index(timestamp, unit = "days"),
+    period = "daily"
+  ) %>%
+  select(-timestamp)
+```
+
+```{r}
+ggplot(daily_weather %>% filter(siteid==1), aes(x = timestamp_key, y = temperature)) + geom_line() +
+  geom_line(data = weather_raw %>% filter(siteid == 1), aes(x = timestamp, y = temperature), color = "red")
+```
+
+```{r}
+ggplot(training_data_raw %>% filter(siteid == 250), aes(x = timestamp, y = value)) + geom_point() + facet_wrap(~ forecastid)
+```
+
+```{r}
+ggplot(training_data_raw, aes(x = value)) + geom_histogram()
+```
+
+```{r}
+ggplot(trn, aes(x = value)) + geom_histogram()
+```
+
